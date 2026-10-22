@@ -1,5 +1,5 @@
 # 앱 아이콘 생성: python icon/make_icon.py → icon/AppIcon.png, icon/AppIcon.icns
-# 콘셉트: 한밤중(남색 배경 + 달), 거의 덮인 맥북 틈으로 새어 나오는 따뜻한 빛 = "덮어도 깨어 있음"
+# 콘셉트: 커피 마신 맥북 = 잠들지 않는 맥북. 메뉴 막대의 ☕(잠자기 방지) 아이콘과 같은 상징을 쓴다
 import math
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter
@@ -8,93 +8,90 @@ S = 4                      # 슈퍼샘플링 배율
 N = 1024 * S
 OUT = Path(__file__).parent
 
+AMBER = (255, 190, 80, 255)
+CREAM = (255, 232, 180, 255)
+
 
 def px(v):
     return int(v * S)
 
 
-def lerp(a, b, t):
-    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(len(a)))
+DY = 40                    # 맥북 전체를 타일 세로 중앙으로 내림
+
+
+def box(x0, y0, x1, y1):
+    return (px(x0), px(y0 + DY), px(x1), px(y1 + DY))
 
 
 def vgradient(size, top, bottom):
     w, h = size
     g = Image.new("RGBA", (1, h))
     for y in range(h):
-        g.putpixel((0, y), lerp(top, bottom, y / (h - 1)))
+        t = y / max(1, h - 1)
+        g.putpixel((0, y), tuple(int(top[i] + (bottom[i] - top[i]) * t) for i in range(4)))
     return g.resize((w, h))
 
 
-def rot(p, origin, deg):
-    a = math.radians(deg)
-    x, y = p[0] - origin[0], p[1] - origin[1]
-    return (origin[0] + x * math.cos(a) - y * math.sin(a), origin[1] + x * math.sin(a) + y * math.cos(a))
+def layer():
+    im = Image.new("RGBA", (N, N), (0, 0, 0, 0))
+    return im, ImageDraw.Draw(im)
 
 
-# macOS 아이콘 그리드: 1024 캔버스 안에 824 둥근 사각형
-tile_box = (px(100), px(100), px(924), px(924))
+def paste_gradient(dst, xy, top, bottom, radius):
+    x0, y0, x1, y1 = box(*xy)
+    m = Image.new("L", (x1 - x0, y1 - y0), 0)
+    ImageDraw.Draw(m).rounded_rectangle((0, 0, x1 - x0 - 1, y1 - y0 - 1), radius=px(radius), fill=255)
+    dst.paste(vgradient((x1 - x0, y1 - y0), top, bottom), (x0, y0), m)
+
+
+# macOS 아이콘 그리드: 1024 캔버스 안에 824 둥근 사각형, 밤하늘 배경
 mask = Image.new("L", (N, N), 0)
-ImageDraw.Draw(mask).rounded_rectangle(tile_box, radius=px(185), fill=255)
+ImageDraw.Draw(mask).rounded_rectangle((px(100), px(100), px(924), px(924)), radius=px(185), fill=255)
+art = vgradient((N, N), (28, 30, 74, 255), (66, 44, 112, 255))
 
-art = vgradient((N, N), (20, 24, 62, 255), (58, 42, 104, 255))
+# 맥북 그림자
+sh, d = layer()
+d.rounded_rectangle(box(170, 690, 854, 735), radius=px(30), fill=(0, 0, 0, 140))
+art = Image.alpha_composite(art, sh.filter(ImageFilter.GaussianBlur(px(18))))
+
+# 맥북 정면: 화면 테두리(은색) + 디스플레이(어두운 남색)
+paste_gradient(art, (222, 232, 802, 650), (232, 235, 242, 255), (196, 201, 212, 255), 40)
+paste_gradient(art, (248, 258, 776, 624), (18, 20, 44, 255), (34, 30, 70, 255), 18)
+
+# 화면 속 커피잔 뒤의 따뜻한 빛
+glow, d = layer()
+d.ellipse(box(372, 330, 652, 590), fill=(255, 170, 60, 150))
+art = Image.alpha_composite(art, glow.filter(ImageFilter.GaussianBlur(px(46))))
+
+# 커피잔: 잔 몸통, 손잡이, 받침
+cup, d = layer()
+d.rounded_rectangle(box(422, 420, 582, 548), radius=px(46), fill=AMBER)
+d.rectangle(box(422, 420, 582, 470), fill=AMBER)
+d.ellipse(box(556, 444, 630, 518), outline=AMBER, width=px(20))
+d.rounded_rectangle(box(392, 556, 612, 578), radius=px(11), fill=AMBER)
+d.rectangle(box(436, 420, 568, 434), fill=CREAM)      # 잔 입구의 커피 표면 하이라이트
+
+# 김 3줄 (사인 곡선)
+for x0 in (462, 502, 542):
+    pts = [(px(x0 + 10 * math.sin(t / 14)), px(400 + DY - t)) for t in range(0, 82, 2)]
+    d.line(pts, fill=CREAM, width=px(13), joint="curve")
+    for x, y in (pts[0], pts[-1]):
+        d.ellipse((x - px(6.5), y - px(6.5), x + px(6.5), y + px(6.5)), fill=CREAM)
+art = Image.alpha_composite(art, cup)
+
+# 본체(키보드 쪽): 화면보다 넓은 얇은 판 + 가운데 손가락 홈
+paste_gradient(art, (160, 650, 864, 698), (226, 229, 236, 255), (156, 162, 176, 255), 22)
 d = ImageDraw.Draw(art)
+d.rounded_rectangle(box(452, 650, 572, 664), radius=px(7), fill=(150, 156, 170, 255))
 
-# 별
-for x, y, r in [(640, 250, 5), (760, 330, 4), (520, 190, 3), (820, 220, 5), (700, 420, 3), (230, 470, 3), (590, 360, 2.5)]:
-    d.ellipse((px(x - r), px(y - r), px(x + r), px(y + r)), fill=(255, 255, 255, 200))
-
-# 초승달
+# 초승달(밤 = 원래 잠들 시간)
 moon = Image.new("L", (N, N), 0)
 md = ImageDraw.Draw(moon)
-cx, cy, r = 320, 320, 100
-md.ellipse((px(cx - r), px(cy - r), px(cx + r), px(cy + r)), fill=255)
-md.ellipse((px(cx - r + 55), px(cy - r - 30), px(cx + r + 55), px(cy + r - 30)), fill=0)
+md.ellipse(box(745, 90, 835, 180), fill=255)
+md.ellipse(box(771, 74, 861, 164), fill=0)
 art.paste((246, 231, 170, 255), (0, 0), moon)
 
-# 노트북(옆모습): 왼쪽 힌지, 덮개는 거의 닫힘
-hinge = (px(200), px(660))
-base_top, base_h, length = px(660), px(58), px(580)
-lid_angle, lid_t = -6, px(30)
-
-# 틈새 빛: 쐐기 + 열린 쪽으로 퍼지며 옅어지는 빛줄기
-tip = rot((hinge[0] + length, hinge[1]), hinge, lid_angle)
-wedge = [hinge, (hinge[0] + length, base_top), tip]
-beam = Image.new("RGBA", (N, N), (0, 0, 0, 0))
-ImageDraw.Draw(beam).polygon(
-    [(tip[0] - px(40), tip[1]), (px(1000), tip[1] - px(170)), (px(1000), base_top + px(110)), (tip[0] - px(40), base_top)],
-    fill=(255, 200, 96, 255))
-fade = Image.new("L", (N, 1))
-for x in range(N):
-    fade.putpixel((x, 0), int(235 * max(0.0, min(1.0, (px(940) - x) / (px(940) - tip[0])))))
-beam.putalpha(Image.composite(fade.resize((N, N)), Image.new("L", (N, N), 0), beam.getchannel("A")))
-art = Image.alpha_composite(art, beam.filter(ImageFilter.GaussianBlur(px(30))))
-glow = Image.new("RGBA", (N, N), (0, 0, 0, 0))
-ImageDraw.Draw(glow).polygon(wedge, fill=(255, 190, 80, 255))
-art = Image.alpha_composite(art, glow.filter(ImageFilter.GaussianBlur(px(34))))
-d = ImageDraw.Draw(art)
-d.polygon(wedge, fill=(255, 222, 150, 255))
-
-# 본체
-body = vgradient((length, base_h), (226, 229, 236, 255), (150, 156, 170, 255))
-bmask = Image.new("L", (length, base_h), 0)
-ImageDraw.Draw(bmask).rounded_rectangle((0, 0, length - 1, base_h - 1), radius=px(14), fill=255)
-art.paste(body, (hinge[0], base_top), bmask)
-
-# 덮개 (회전한 얇은 판)
-lid = Image.new("RGBA", (N, N), (0, 0, 0, 0))
-ld = ImageDraw.Draw(lid)
-x0, y0 = hinge
-corners = [(x0, y0 - lid_t), (x0 + length, y0 - lid_t), (x0 + length, y0), (x0, y0)]
-ld.polygon([rot(c, hinge, lid_angle) for c in corners], fill=(214, 218, 228, 255))
-edge = [(x0, y0 - lid_t), (x0 + length, y0 - lid_t), (x0 + length, y0 - lid_t + px(6)), (x0, y0 - lid_t + px(6))]
-ld.polygon([rot(c, hinge, lid_angle) for c in edge], fill=(245, 247, 251, 255))
-art = Image.alpha_composite(art, lid)
-
-# 힌지
-d = ImageDraw.Draw(art)
-d.ellipse((hinge[0] - px(22), hinge[1] - px(24), hinge[0] + px(22), hinge[1] + px(20)), fill=(170, 176, 190, 255))
-
-# 타일 적용 + 그림자
+# 타일 적용 + 바깥 그림자
 tile = Image.new("RGBA", (N, N), (0, 0, 0, 0))
 tile.paste(art, (0, 0), mask)
 shadow = Image.new("RGBA", (N, N), (0, 0, 0, 0))

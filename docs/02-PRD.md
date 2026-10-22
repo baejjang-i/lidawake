@@ -37,7 +37,7 @@
 | D1 | 설치 파일 | `LidAwake.dmg` (앱 + Applications 바로가기). 열어서 앱을 Applications로 끌어다 놓으면 설치 끝 |
 | D2 | 아키텍처 | Apple Silicon + Intel 겸용(universal) 바이너리 |
 | D3 | 빌드 | GitHub Actions macOS 머신에서 빌드해 Release `latest`에 업로드 (개발 PC가 Windows이기 때문) |
-| D4 | 앱 아이콘 | 밤하늘 + 달 + 거의 덮인 맥북 틈으로 새어 나오는 빛 = "덮어도 깨어 있음". 원본 `icon/make_icon.py` |
+| D4 | 앱 아이콘 | 밤(초승달)인데도 맥북 화면에 김 나는 커피잔이 켜져 있음 = "커피 마신 맥북은 잠들지 않는다". 메뉴 막대의 ☕(잠자기 방지) 아이콘과 같은 상징이다. v1(덮개 옆모습)은 작은 크기에서 노트북으로 알아보기 어려워 교체했다. 원본 `icon/make_icon.py` |
 | D5 | 메뉴 막대 아이콘 | SF Symbols(☕ / 🌙) 사용. 다크/라이트 모드에 자동으로 맞춰지고 시스템 아이콘과 톤이 같음 |
 
 ## 범위 제외 (v1)

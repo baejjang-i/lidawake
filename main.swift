@@ -1,8 +1,5 @@
 import Cocoa
 
-let sudoersPath = "/etc/sudoers.d/lidawake"
-
-@discardableResult
 func run(_ path: String, _ args: [String]) -> (ok: Bool, out: String) {
     let p = Process()
     let pipe = Pipe()
@@ -34,7 +31,7 @@ func installSudoersRule() -> (ok: Bool, out: String) {
     let tmp = NSTemporaryDirectory() + "lidawake.sudoers"
     do { try rule.write(toFile: tmp, atomically: true, encoding: .utf8) } catch { return (false, "\(error)") }
     defer { try? FileManager.default.removeItem(atPath: tmp) }
-    let sh = "/usr/sbin/visudo -cf '\(tmp)' && /usr/bin/install -m 0440 -o root -g wheel '\(tmp)' '\(sudoersPath)'"
+    let sh = "/usr/sbin/visudo -cf '\(tmp)' && /usr/bin/install -m 0440 -o root -g wheel '\(tmp)' /etc/sudoers.d/lidawake"
     return run("/usr/bin/osascript", ["-e", "do shell script \"\(sh)\" with administrator privileges"])
 }
 
@@ -58,7 +55,6 @@ final class App: NSObject, NSApplicationDelegate {
         item.button?.action = #selector(clicked)
         item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
         show(sleepDisabled())
-        trim()
     }
 
     // 정책서 §3: 종료 시 잠자기 방지 해제 (이미 0이어도 무해하므로 상태 조회 없이 바로 실행)
@@ -77,7 +73,7 @@ final class App: NSObject, NSApplicationDelegate {
         } else {
             toggle()
         }
-        trim()
+        malloc_zone_pressure_relief(nil, 0)  // 클릭 처리(메뉴·경고창·프로세스)로 늘어난 힙을 즉시 반환
     }
 
     func toggle() {
@@ -98,17 +94,11 @@ final class App: NSObject, NSApplicationDelegate {
         item.button?.toolTip = on ? "잠자기 방지 중 — 덮개를 닫아도 깨어 있음 (클릭: 해제)"
                                   : "잠자기 허용 — 평소 상태 (클릭: 잠자기 방지)"
     }
-
-    // 클릭 처리(메뉴·경고창·프로세스 실행)로 늘어난 힙을 OS에 바로 돌려줌 → 대기 중 메모리 최소화
-    func trim() {
-        malloc_zone_pressure_relief(nil, 0)
-    }
 }
 
 MainActor.assumeIsolated {
     let app = NSApplication.shared
     let delegate = App()
     app.delegate = delegate
-    app.setActivationPolicy(.accessory)
     app.run()
 }
