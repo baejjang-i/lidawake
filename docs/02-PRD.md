@@ -20,7 +20,16 @@
 
 ## 비기능 요구사항
 - 외부 라이브러리 없음. Swift 단일 파일 + `swiftc` 빌드 (Xcode 프로젝트 불필요)
-- 실행 중 메모리 30MB 이하, 평소 CPU 0% (폴링 없음)
+- 대기 상태 메모리(활동 모니터 "메모리" 값 = phys_footprint) **8MB 이하**. 평소 CPU 0%. 타이머나 폴링 없이 클릭할 때만 동작
+  - CI가 빌드할 때마다 앱을 실행하고 footprint를 기록한다 (`.github/workflows/build.yml`의 memory check 단계)
+  - 측정값: 최적화 전 8,082KB → 최적화 후 약 7,700KB (macos-14 기준)
+  - 남은 메모리는 대부분 메뉴 막대 아이콘에 필요한 AppKit 기본 비용(프레임워크 __DATA, ColorSync, WindowServer 공유 메모리)이다. 앱 코드에서 더 줄일 여지는 거의 없다
+- 메모리 최적화 항목
+  - 메뉴 막대 아이콘 이미지 2개를 처음 한 번만 만들고 재사용한다
+  - 클릭 1회당 pmset 실행을 3번에서 2번으로, 종료 시 2번에서 1번으로 줄였다
+  - 클릭을 처리한 뒤 `malloc_zone_pressure_relief`로 남는 힙 메모리를 OS에 즉시 돌려준다 (경고창이나 비밀번호 창을 띄운 뒤에도 메모리가 늘어난 채로 남지 않게 하기 위함)
+  - `LSEnvironment`에 `MallocNanoZone=0`을 설정한다 (실측 약 −380KB)
+  - `-Osize`, `dead_strip`, `strip -x` 옵션으로 바이너리 크기를 줄인다
 
 ## 배포 / 디자인
 | ID | 항목 | 상세 |

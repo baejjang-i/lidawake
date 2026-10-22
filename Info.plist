@@ -10,5 +10,6 @@
     <key>LSMinimumSystemVersion</key><string>11.0</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>LSUIElement</key><true/>
+    <key>LSEnvironment</key><dict><key>MallocNanoZone</key><string>0</string></dict>
 </dict>
 </plist>

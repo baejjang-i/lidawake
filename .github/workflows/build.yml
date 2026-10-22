@@ -14,19 +14,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sh build.sh dmg
-      - name: memory check (대기 상태 footprint)
+      - name: memory check (대기 상태 footprint, 실제 실행 경로인 open 사용)
         run: |
-          ./LidAwake.app/Contents/MacOS/LidAwake & pid=$!
+          open ./LidAwake.app
           sleep 5
-          kill -0 $pid
+          pid=$(pgrep -x LidAwake)
           sudo footprint $pid | grep -i footprint
-          ps -o rss=,command= -p $pid
-          sudo vmmap --summary $pid | sed -n "/REGION TYPE/,/TOTAL/p" | sort -k4 -h | tail -12
-          kill $pid
-          MallocNanoZone=0 ./LidAwake.app/Contents/MacOS/LidAwake & pid=$!
-          sleep 5
-          echo nano-off; sudo footprint $pid | grep -i footprint
-          kill $pid
+          pkill -x LidAwake
       - uses: actions/upload-artifact@v4
         with:
           name: LidAwake
