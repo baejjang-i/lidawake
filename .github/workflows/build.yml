@@ -1,0 +1,26 @@
+# macOS 머신에서 DMG를 빌드해 GitHub Release에 올린다 (Windows에서 개발하므로 빌드는 여기서)
+name: build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh build.sh dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LidAwake
+          path: LidAwake.dmg
+      - name: release (latest)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest LidAwake.dmg --title "LidAwake (최신 빌드)" --notes "커밋 ${GITHUB_SHA::7} 빌드"
