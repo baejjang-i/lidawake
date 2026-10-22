@@ -23,6 +23,10 @@ jobs:
           ps -o rss=,command= -p $pid
           sudo vmmap --summary $pid | sed -n "/REGION TYPE/,/TOTAL/p" | sort -k4 -h | tail -12
           kill $pid
+          MallocNanoZone=0 ./LidAwake.app/Contents/MacOS/LidAwake & pid=$!
+          sleep 5
+          echo nano-off; sudo footprint $pid | grep -i footprint
+          kill $pid
       - uses: actions/upload-artifact@v4
         with:
           name: LidAwake
