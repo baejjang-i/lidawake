@@ -50,17 +50,20 @@ func alert(_ text: String) {
 @MainActor
 final class App: NSObject, NSApplicationDelegate {
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    let awake = NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: "잠자기 방지 중")
+    let asleep = NSImage(systemSymbolName: "moon.zzz", accessibilityDescription: "잠자기 허용")
 
     func applicationDidFinishLaunching(_ n: Notification) {
         item.button?.target = self
         item.button?.action = #selector(clicked)
         item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        refresh()
+        show(sleepDisabled())
+        trim()
     }
 
-    // 정책서 §3: 종료 시 잠자기 방지 해제
+    // 정책서 §3: 종료 시 잠자기 방지 해제 (이미 0이어도 무해하므로 상태 조회 없이 바로 실행)
     func applicationWillTerminate(_ n: Notification) {
-        if sleepDisabled() { setSleepDisabled(false) }
+        setSleepDisabled(false)
     }
 
     @objc func clicked() {
@@ -74,29 +77,31 @@ final class App: NSObject, NSApplicationDelegate {
         } else {
             toggle()
         }
+        trim()
     }
 
     func toggle() {
-        let target = !sleepDisabled()
-        var r = setSleepDisabled(target)
-        if !r.ok {
-            let setup = installSudoersRule()
-            if !setup.ok {
-                if !setup.out.contains("-128") { alert("권한 설정 실패:\n\(setup.out)") }  // -128 = 사용자가 취소
-                return
-            }
-            r = setSleepDisabled(target)
-            if !r.ok { alert("pmset 실행 실패:\n\(r.out)") }
+        let target = !sleepDisabled()  // 정책서 §2: 클릭 시점의 실제 값 기준
+        if setSleepDisabled(target).ok { return show(target) }
+        let setup = installSudoersRule()
+        if !setup.ok {
+            if !setup.out.contains("-128") { alert("권한 설정 실패:\n\(setup.out)") }  // -128 = 사용자가 취소
+            return
         }
-        refresh()
+        let r = setSleepDisabled(target)
+        if !r.ok { alert("pmset 실행 실패:\n\(r.out)") }
+        show(r.ok ? target : sleepDisabled())
     }
 
-    func refresh() {
-        let on = sleepDisabled()
-        item.button?.image = NSImage(systemSymbolName: on ? "cup.and.saucer.fill" : "moon.zzz",
-                                     accessibilityDescription: on ? "잠자기 방지 중" : "잠자기 허용")
+    func show(_ on: Bool) {
+        item.button?.image = on ? awake : asleep
         item.button?.toolTip = on ? "잠자기 방지 중 — 덮개를 닫아도 깨어 있음 (클릭: 해제)"
                                   : "잠자기 허용 — 평소 상태 (클릭: 잠자기 방지)"
+    }
+
+    // 클릭 처리(메뉴·경고창·프로세스 실행)로 늘어난 힙을 OS에 바로 돌려줌 → 대기 중 메모리 최소화
+    func trim() {
+        malloc_zone_pressure_relief(nil, 0)
     }
 }
 

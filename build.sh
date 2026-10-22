@@ -9,9 +9,10 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp Info.plist "$APP/Contents/"
 cp icon/AppIcon.icns "$APP/Contents/Resources/"
 # Apple Silicon + Intel 겸용(universal) 바이너리
-swiftc -O -target arm64-apple-macos11 main.swift -o /tmp/lidawake-arm64
-swiftc -O -target x86_64-apple-macos11 main.swift -o /tmp/lidawake-x86_64
+swiftc -Osize -Xlinker -dead_strip -target arm64-apple-macos11 main.swift -o /tmp/lidawake-arm64
+swiftc -Osize -Xlinker -dead_strip -target x86_64-apple-macos11 main.swift -o /tmp/lidawake-x86_64
 lipo -create /tmp/lidawake-arm64 /tmp/lidawake-x86_64 -output "$APP/Contents/MacOS/LidAwake"
+strip -x "$APP/Contents/MacOS/LidAwake"
 codesign --force --sign - "$APP"
 
 if [ "$1" = "dmg" ]; then
