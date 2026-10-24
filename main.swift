@@ -44,11 +44,20 @@ func alert(_ text: String) {
     a.runModal()
 }
 
+// 메뉴 막대 아이콘: 살짝 열린 덮개 = 잠자기 방지, 닫힌 덮개 = 평소 (icon/make_icon.mjs)
+// 리소스가 없으면 실행 즉시 종료 → CI 메모리 측정 단계가 실패해서 잡힘
+func menuIcon(_ name: String, _ label: String) -> NSImage {
+    let i = NSImage(named: name)!
+    i.isTemplate = true
+    i.accessibilityDescription = label
+    return i
+}
+
 @MainActor
 final class App: NSObject, NSApplicationDelegate {
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-    let awake = NSImage(systemSymbolName: "cup.and.saucer.fill", accessibilityDescription: "잠자기 방지 중")
-    let asleep = NSImage(systemSymbolName: "moon.zzz", accessibilityDescription: "잠자기 허용")
+    let awake = menuIcon("LidOpenTemplate", "잠자기 방지 중")
+    let asleep = menuIcon("LidClosedTemplate", "잠자기 허용")
 
     func applicationDidFinishLaunching(_ n: Notification) {
         item.button?.target = self

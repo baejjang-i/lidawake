@@ -7,7 +7,8 @@ APP=LidAwake.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp Info.plist "$APP/Contents/"
-cp icon/AppIcon.icns "$APP/Contents/Resources/"
+iconutil -c icns icon/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
+cp icon/Lid*Template*.png "$APP/Contents/Resources/"
 # Apple Silicon + Intel 겸용(universal) 바이너리
 swiftc -Osize -Xlinker -dead_strip -target arm64-apple-macos11 main.swift -o /tmp/lidawake-arm64
 swiftc -Osize -Xlinker -dead_strip -target x86_64-apple-macos11 main.swift -o /tmp/lidawake-x86_64
